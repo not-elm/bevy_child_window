@@ -1,0 +1,32 @@
+[package]
+name = "bevy_child_window"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = { version = "0.15", default-features = false, features = [
+    "bevy_window",
+    "bevy_winit",
+] }
+winit = { version = "=0.30.7"}
+
+[dev-dependencies]
+bevy = "0.15"
+
+[target.'cfg(any(target_os = "ios", target_os = "macos"))'.dependencies]
+objc2 = { version = "0.5" }
+objc2-app-kit = { version = "0.2.0", features = [
+    "NSApplication",
+    "NSEvent",
+    "NSWindow",
+    "NSView",
+    "NSPasteboard",
+    "NSPanel",
+    "NSResponder",
+    "NSOpenPanel",
+    "NSSavePanel",
+    "NSMenu",
+    "NSGraphics",
+    "NSTrackingArea",
+] }
+objc2-foundation = { version = "0.2.0" }
