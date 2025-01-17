@@ -1,48 +1,81 @@
+//!
+
+#![allow(clippy::type_complexity)]
+
 mod platform_impl;
-
-use bevy::app::{App, Plugin, PreUpdate};
+use bevy::app::{App, Plugin};
 use bevy::ecs::world::DeferredWorld;
-use bevy::prelude::{Added, Commands, Component, Entity, NonSend, Parent, Query, With};
-use bevy::window::Window;
-use bevy::winit::WinitWindows;
+use bevy::prelude::{Component, Entity, Reflect, ReflectComponent, ReflectDefault, ReflectDeserialize, ReflectSerialize};
+use serde::{Deserialize, Serialize};
 
-pub struct BevyChildWindowPlugin;
+#[allow(missing_docs)]
+pub mod prelude {
+    pub use crate::ChildWindowPlugin;
+    pub use crate::ParentWindow;
+}
 
-impl Plugin for BevyChildWindowPlugin {
+/// Provides the feature to create a child window
+///
+/// You can create a child window by inserting [`ParentWindow`].
+/// The window belonging to the same entity as its component will be displayed within the area of the parent window.
+///
+/// # Example
+/// ```no_run
+/// use bevy::prelude::*;
+/// use bevy_child_window::ParentWindow;
+///
+/// fn spawn_child_window(
+///     mut commands: Commands,
+///    parent_window: Query<Entity, With<ParentWindow>>,
+/// ){
+///     commands.spawn((
+///         ParentWindow(parent_window.single()),
+///         Window::default(),
+///    ));
+/// }
+/// ```
+pub struct ChildWindowPlugin;
+
+impl Plugin for ChildWindowPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(PreUpdate, (
-            insert,
-            convert_to_child_window,
-            platform_impl::fit,
-            ));
+        app
+            .register_type::<ParentWindow>()
+            .register_type::<UnInitializeWindow>()
+            .add_plugins(platform_impl::ChildWindowPlugin);
+
+        app
+            .world_mut()
+            .register_component_hooks::<ParentWindow>()
+            .on_add(|mut world: DeferredWorld, entity: Entity, _| {
+                world.commands().entity(entity).insert(UnInitializeWindow);
+            });
     }
 }
 
-fn insert(
-    mut commands: Commands,
-    windows: Query<Entity, (Added<Window>, With<Parent>)>,
-){
-    for entity in windows.iter(){
-        commands.entity(entity).insert(UnInitialize);
-    }
-}
+/// Specifies the entity of the parent window.
+///
+/// The window belonging to the same entity as this component will be displayed within the area of the parent window.
+///
+/// # Example
+/// ```no_run
+/// use bevy::prelude::*;
+/// use bevy_child_window::ParentWindow;
+///
+/// fn spawn_child_window(
+///     mut commands: Commands,
+///    parent_window: Query<Entity, With<ParentWindow>>,
+/// ){
+///     commands.spawn((
+///         ParentWindow(parent_window.single()),
+///         Window::default(),
+///    ));
+/// }
+/// ```
+#[derive(Component, Reflect, Serialize, Deserialize)]
+#[reflect(Component, Serialize, Deserialize)]
+pub struct ParentWindow(pub Entity);
 
-# [derive(Component)]
-struct UnInitialize;
+#[derive(Component, Reflect, Serialize, Deserialize, Default)]
+#[reflect(Component, Serialize, Deserialize, Default)]
+struct UnInitializeWindow;
 
-fn convert_to_child_window(
-    mut commands: Commands,
-    winit_windows: NonSend<WinitWindows>,
-    windows: Query<(Entity, &Parent), (With<Window>, With<UnInitialize>)>,
-){
-    for (entity, parent) in windows.iter(){
-        let Some(child) = winit_windows.get_window(entity) else{
-            continue;
-        };
-        let Some(parent) = winit_windows.get_window(parent.get()) else{
-            continue;
-        };
-        platform_impl::set_parent(child, parent);
-        commands.entity(entity).remove::<UnInitialize>();
-    }
-}
