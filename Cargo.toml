@@ -7,15 +7,19 @@ edition = "2021"
 bevy = { version = "0.15", default-features = false, features = [
     "bevy_window",
     "bevy_winit",
+    "serialize",
 ] }
-winit = { version = "=0.30.7"}
+winit = { version = "=0.30.7" }
+serde = { version = "1.0.217", features = ["derive"] }
 
 [dev-dependencies]
 bevy = "0.15"
+bevy_webview_wry = { path = "../bevy_webview_projects/crates/bevy_webview_wry" }
 
 [target.'cfg(any(target_os = "ios", target_os = "macos"))'.dependencies]
-objc2 = { version = "0.5" }
-objc2-app-kit = { version = "0.2.0", features = [
+block2 = { version = "0.5.1" }
+objc2 = { version = "0.5.2", features = ["std"] }
+objc2-app-kit = { version = "0.2.2", features = [
     "NSApplication",
     "NSEvent",
     "NSWindow",
@@ -28,5 +32,17 @@ objc2-app-kit = { version = "0.2.0", features = [
     "NSMenu",
     "NSGraphics",
     "NSTrackingArea",
+    "block2",
 ] }
 objc2-foundation = { version = "0.2.0" }
+
+[lints.clippy]
+type_complexity = "allow"
+doc_markdown = "warn"
+manual_let_else = "warn"
+redundant_else = "warn"
+match_same_arms = "warn"
+semicolon_if_nothing_returned = "warn"
+
+[lints.rust]
+missing_docs = "warn"
