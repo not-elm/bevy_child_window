@@ -6,7 +6,7 @@ This library provides a way to create a child window in Bevy.
 
 | Platform | usable |
 |----------|--------|
-| Windows  | ❌      |
+| Windows  | ✅      |
 | MacOS    | ✅      |
 | Linux    | ❌      |
 | Web      | ❌      |
