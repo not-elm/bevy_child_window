@@ -13,7 +13,7 @@ use block2::RcBlock;
 use objc2::ffi::NSInteger;
 use objc2::rc::{Id, Retained};
 use objc2::ClassType;
-use objc2_app_kit::{NSEvent, NSEventMask, NSEventType, NSView, NSWindow, NSWindowOrderingMode, NSWindowStyleMask};
+use objc2_app_kit::{NSEvent, NSEventMask, NSEventType, NSView, NSWindow, NSWindowOrderingMode, NSWindowStyleMask, NSWindowTitleVisibility};
 use objc2_foundation::{CGPoint, CGRect};
 use std::cell::Cell;
 use std::ptr::{null_mut, NonNull};
@@ -28,7 +28,7 @@ impl Plugin for ChildWindowPlugin {
     fn build(&self, app: &mut App) {
         let (sender, receiver) = std::sync::mpsc::channel::<RequestCursorChange>();
         app
-            .insert_non_send_resource(cursor::RequestCursorChangeSender(sender))
+            .insert_non_send_resource(RequestCursorChangeSender(sender))
             .insert_non_send_resource(cursor::RequestCursorChangeReceiver(receiver))
             .init_resource::<AlreadyRegisteredWindows>()
             .add_systems(Update, (
@@ -72,9 +72,9 @@ fn convert_to_child_window(
     mut already_registered_windows: ResMut<AlreadyRegisteredWindows>,
     winit_windows: NonSend<WinitWindows>,
     request_cursor_change_sender: NonSend<RequestCursorChangeSender>,
-    windows: Query<(Entity, &ParentWindow), (With<Window>, With<UnInitializeWindow>)>,
+    windows: Query<(Entity, &Window, &ParentWindow), With<UnInitializeWindow>>,
 ) {
-    for (entity, ParentWindow(parent_entity)) in windows.iter() {
+    for (entity, window, ParentWindow(parent_entity)) in windows.iter() {
         let Some(child) = winit_windows.get_window(entity) else {
             continue;
         };
@@ -88,10 +88,10 @@ fn convert_to_child_window(
             return;
         };
         commands.entity(entity).remove::<UnInitializeWindow>();
-        settings_windows(&child_window, &parent_window);
+        settings_windows(window, &child_window, &parent_window);
         if !already_registered_windows.0.contains(parent_entity) {
             unsafe {
-                register_ns_event(request_cursor_change_sender.0.clone(), parent_window, *parent_entity);
+                register_ns_event(window.resizable, request_cursor_change_sender.0.clone(), parent_window, *parent_entity);
             }
             already_registered_windows.0.insert(*parent_entity);
         }
@@ -99,6 +99,7 @@ fn convert_to_child_window(
 }
 
 fn settings_windows(
+    window: &Window,
     child_window: &NSWindow,
     parent_window: &NSWindow,
 ) {
@@ -107,13 +108,27 @@ fn settings_windows(
     }
 
     child_window.setMovable(false);
-    child_window.setStyleMask(
-        NSWindowStyleMask::Titled |
-            NSWindowStyleMask::Closable
-    );
+    child_window.setStyleMask(style_mask(window));
+    child_window.setTitleVisibility(if window.titlebar_show_title {
+        NSWindowTitleVisibility::NSWindowTitleVisible
+    } else {
+        NSWindowTitleVisibility::NSWindowTitleHidden
+    });
+}
+
+fn style_mask(window: &Window) -> NSWindowStyleMask {
+    let mut mask = NSWindowStyleMask::empty();
+    if !window.titlebar_shown {
+        return mask;
+    }
+    if window.titlebar_show_buttons {
+        mask |= NSWindowStyleMask::Titled | NSWindowStyleMask::Closable;
+    }
+    mask
 }
 
 unsafe fn register_ns_event(
+    resizable: bool,
     request_cursor_change_sender: Sender<RequestCursorChange>,
     parent_window: Retained<NSWindow>,
     parent_window_entity: Entity,
@@ -136,7 +151,7 @@ unsafe fn register_ns_event(
                 (NSEventType::LeftMouseUp, _) => {
                     status.set(CurrentStatus::None);
                 }
-                (NSEventType::MouseMoved, CurrentStatus::None | CurrentStatus::ResizeCursorVisible { direction: _, target_window: _ }) => {
+                (NSEventType::MouseMoved, CurrentStatus::None | CurrentStatus::ResizeCursorVisible { direction: _, target_window: _ }) if resizable => {
                     let (child_window, cursor_icon) = current_cursor_icon(&parent_window, e);
                     let _ = request_cursor_change_sender.send(RequestCursorChange {
                         parent_window: parent_window_entity,
@@ -272,6 +287,7 @@ unsafe fn bring_to_front_child_window(
     parent_window: &NSWindow,
     child_window: &NSWindow,
 ) {
+    // parent_window.setIgnoresMouseEvents(true);
     parent_window.removeChildWindow(child_window);
     if let Some(children) = parent_window.childWindows() {
         for child in children.iter() {
