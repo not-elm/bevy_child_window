@@ -1,4 +1,23 @@
-//!  
+//! Provides the feature to create a child window
+//!
+//! You can create a child window by inserting [`ParentWindow`].
+//! The window belonging to the same entity as its component will be displayed within the area of the parent window.
+//!
+//! # Example
+//! ```no_run
+//! use bevy::prelude::*;
+//! use bevy_child_window::ParentWindow;
+//!
+//! fn spawn_child_window(
+//!     mut commands: Commands,
+//!    parent_window: Query<Entity, With<ParentWindow>>,
+//! ){
+//!     commands.spawn((
+//!         ParentWindow(parent_window.single()),
+//!         Window::default(),
+//!    ));
+//! }
+//! ```
 
 #![allow(clippy::type_complexity)]
 

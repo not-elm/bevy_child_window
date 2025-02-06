@@ -22,6 +22,7 @@ fn spawn_child_window(
         ParentWindow(parent.single()),
         Window {
             title: "Child Window".to_string(),
+            resizable: true,
             resolution: WindowResolution::new(500.0, 500.0),
             ..Default::default()
         }

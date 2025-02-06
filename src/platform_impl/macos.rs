@@ -1,8 +1,6 @@
-mod resize;
-mod cursor;
+mod delegate;
 
-use crate::platform_impl::macos::cursor::{current_cursor_icon, to_resize_direction, RequestCursorChange, RequestCursorChangeSender};
-use crate::platform_impl::macos::resize::{resize_on_bottom_edge, resize_on_left_edge, resize_on_right_edge, resize_on_top_edge, resize_on_top_left_edge, resize_on_top_right_edge};
+use crate::platform_impl::macos::delegate::ChildWindowDelegate;
 use crate::{ParentWindow, UnInitializeWindow};
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::{Commands, Entity, NonSend, Query, ResMut, Resource, With};
@@ -12,12 +10,13 @@ use bevy::winit::WinitWindows;
 use block2::RcBlock;
 use objc2::ffi::NSInteger;
 use objc2::rc::{Id, Retained};
+use objc2::runtime::ProtocolObject;
 use objc2::ClassType;
 use objc2_app_kit::{NSEvent, NSEventMask, NSEventType, NSView, NSWindow, NSWindowOrderingMode, NSWindowStyleMask, NSWindowTitleVisibility};
-use objc2_foundation::{CGPoint, CGRect};
+use objc2_foundation::{CGPoint, CGRect, MainThreadMarker};
 use std::cell::Cell;
+use std::mem::forget;
 use std::ptr::{null_mut, NonNull};
-use std::sync::mpsc::Sender;
 #[allow(deprecated)]
 use winit::raw_window_handle::HasRawWindowHandle;
 use winit::raw_window_handle::RawWindowHandle;
@@ -26,14 +25,10 @@ pub struct ChildWindowPlugin;
 
 impl Plugin for ChildWindowPlugin {
     fn build(&self, app: &mut App) {
-        let (sender, receiver) = std::sync::mpsc::channel::<RequestCursorChange>();
         app
-            .insert_non_send_resource(RequestCursorChangeSender(sender))
-            .insert_non_send_resource(cursor::RequestCursorChangeReceiver(receiver))
             .init_resource::<AlreadyRegisteredWindows>()
             .add_systems(Update, (
                 convert_to_child_window,
-                cursor::change_cursor_system,
             ));
     }
 }
@@ -42,26 +37,6 @@ impl Plugin for ChildWindowPlugin {
 enum CurrentStatus {
     None,
     Moving(NSInteger),
-    Resizing {
-        target_window: NSInteger,
-        direction: ResizeDirection,
-    },
-    ResizeCursorVisible {
-        target_window: NSInteger,
-        direction: ResizeDirection,
-    },
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-enum ResizeDirection {
-    Left,
-    Right,
-    Top,
-    Bottom,
-    TopLeft,
-    TopRight,
-    BottomLeft,
-    BottomRight,
 }
 
 #[derive(Resource, Default)]
@@ -71,7 +46,6 @@ fn convert_to_child_window(
     mut commands: Commands,
     mut already_registered_windows: ResMut<AlreadyRegisteredWindows>,
     winit_windows: NonSend<WinitWindows>,
-    request_cursor_change_sender: NonSend<RequestCursorChangeSender>,
     windows: Query<(Entity, &Window, &ParentWindow), With<UnInitializeWindow>>,
 ) {
     for (entity, window, ParentWindow(parent_entity)) in windows.iter() {
@@ -91,7 +65,7 @@ fn convert_to_child_window(
         settings_windows(window, &child_window, &parent_window);
         if !already_registered_windows.0.contains(parent_entity) {
             unsafe {
-                register_ns_event(window.resizable, request_cursor_change_sender.0.clone(), parent_window, *parent_entity);
+                register_ns_event(parent_window);
             }
             already_registered_windows.0.insert(*parent_entity);
         }
@@ -107,6 +81,10 @@ fn settings_windows(
         parent_window.addChildWindow_ordered(child_window, NSWindowOrderingMode::NSWindowAbove);
     }
 
+    let delegate = ChildWindowDelegate::new(MainThreadMarker::new().unwrap());
+    child_window.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
+    forget(delegate);
+
     child_window.setMovable(false);
     child_window.setStyleMask(style_mask(window));
     child_window.setTitleVisibility(if window.titlebar_show_title {
@@ -116,8 +94,12 @@ fn settings_windows(
     });
 }
 
+
 fn style_mask(window: &Window) -> NSWindowStyleMask {
     let mut mask = NSWindowStyleMask::empty();
+    if window.resizable {
+        mask |= NSWindowStyleMask::Resizable;
+    }
     if !window.titlebar_shown {
         return mask;
     }
@@ -128,10 +110,7 @@ fn style_mask(window: &Window) -> NSWindowStyleMask {
 }
 
 unsafe fn register_ns_event(
-    resizable: bool,
-    request_cursor_change_sender: Sender<RequestCursorChange>,
     parent_window: Retained<NSWindow>,
-    parent_window_entity: Entity,
 ) {
     let status = Cell::new(CurrentStatus::None);
     NSEvent::addLocalMonitorForEventsMatchingMask_handler(
@@ -142,89 +121,8 @@ unsafe fn register_ns_event(
                 (NSEventType::LeftMouseDown, CurrentStatus::None) => {
                     transition_to_move(&parent_window, &status, e);
                 }
-                (NSEventType::LeftMouseDown, CurrentStatus::ResizeCursorVisible {
-                    target_window,
-                    direction,
-                }) => {
-                    transition_to_resize(&parent_window, &status, target_window, direction);
-                }
                 (NSEventType::LeftMouseUp, _) => {
                     status.set(CurrentStatus::None);
-                }
-                (NSEventType::MouseMoved, CurrentStatus::None | CurrentStatus::ResizeCursorVisible { direction: _, target_window: _ }) if resizable => {
-                    let (child_window, cursor_icon) = current_cursor_icon(&parent_window, e);
-                    let _ = request_cursor_change_sender.send(RequestCursorChange {
-                        parent_window: parent_window_entity,
-                        cursor_icon,
-                    });
-                    if let Some(resize_direction) = to_resize_direction(&cursor_icon) {
-                        status.set(CurrentStatus::ResizeCursorVisible {
-                            target_window: child_window,
-                            direction: resize_direction,
-                        });
-                    } else {
-                        status.set(CurrentStatus::None);
-                    }
-                }
-                (NSEventType::LeftMouseDragged, CurrentStatus::Resizing {
-                    target_window,
-                    direction: ResizeDirection::Left,
-                }) => {
-                    resize_on_left_edge(&parent_window, target_window, e.deltaX());
-                }
-                (NSEventType::LeftMouseDragged, CurrentStatus::Resizing {
-                    target_window,
-                    direction: ResizeDirection::Right,
-                }) => {
-                    resize_on_right_edge(&parent_window, target_window, e.deltaX());
-                }
-                (NSEventType::LeftMouseDragged, CurrentStatus::Resizing {
-                    target_window,
-                    direction: ResizeDirection::Top,
-                }) => {
-                    resize_on_top_edge(&parent_window, target_window, e.deltaY());
-                }
-                (NSEventType::LeftMouseDragged, CurrentStatus::Resizing {
-                    target_window,
-                    direction: ResizeDirection::Bottom,
-                }) => {
-                    resize_on_bottom_edge(&parent_window, target_window, e.deltaY());
-                }
-                (NSEventType::LeftMouseDragged, CurrentStatus::Resizing {
-                    target_window,
-                    direction: ResizeDirection::TopLeft,
-                }) => {
-                    resize_on_top_left_edge(
-                        &parent_window,
-                        target_window,
-                        e.deltaX(),
-                        e.deltaY(),
-                    );
-                }
-                (NSEventType::LeftMouseDragged, CurrentStatus::Resizing {
-                    target_window,
-                    direction: ResizeDirection::TopRight,
-                }) => {
-                    resize_on_top_right_edge(
-                        &parent_window,
-                        target_window,
-                        e.deltaX(),
-                        e.deltaY(),
-                    );
-                }
-                (NSEventType::LeftMouseDragged, CurrentStatus::Resizing {
-                    target_window,
-                    direction: ResizeDirection::BottomLeft,
-                }) => {
-                    resize_on_left_edge(&parent_window, target_window, e.deltaX());
-                    resize_on_bottom_edge(&parent_window, target_window, e.deltaY());
-                }
-                (NSEventType::LeftMouseDragged, CurrentStatus::Resizing {
-                    target_window,
-                    direction: ResizeDirection::BottomRight,
-                }) => {
-                    resize_on_right_edge(&parent_window, target_window, e.deltaX());
-                    resize_on_bottom_edge(&parent_window, target_window, e.deltaY());
                 }
                 (NSEventType::LeftMouseDragged, CurrentStatus::Moving(target_num)) => {
                     let Some(child_window) = find_child_window(&parent_window, target_num) else {
@@ -313,17 +211,4 @@ unsafe fn transition_to_move(
     };
 }
 
-unsafe fn transition_to_resize(
-    parent_window: &NSWindow,
-    status: &Cell<CurrentStatus>,
-    child_window_num: NSInteger,
-    resize_dir: ResizeDirection,
-) {
-    if let Some(child_window) = find_child_window(parent_window, child_window_num) {
-        bring_to_front_child_window(parent_window, &child_window);
-        status.set(CurrentStatus::Resizing {
-            target_window: child_window_num,
-            direction: resize_dir,
-        });
-    }
-}
+
