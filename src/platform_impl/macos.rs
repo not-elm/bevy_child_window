@@ -65,7 +65,7 @@ fn convert_to_child_window(
         settings_windows(window, &child_window, &parent_window);
         if !already_registered_windows.0.contains(parent_entity) {
             unsafe {
-                register_ns_event(parent_window);
+                register_ns_event(window, parent_window);
             }
             already_registered_windows.0.insert(*parent_entity);
         }
@@ -110,8 +110,10 @@ fn style_mask(window: &Window) -> NSWindowStyleMask {
 }
 
 unsafe fn register_ns_event(
+    window: &Window,
     parent_window: Retained<NSWindow>,
 ) {
+    let movable_by_window_background = window.movable_by_window_background;
     let status = Cell::new(CurrentStatus::None);
     NSEvent::addLocalMonitorForEventsMatchingMask_handler(
         NSEventMask::LeftMouseDragged | NSEventMask::LeftMouseDown | NSEventMask::LeftMouseUp | NSEventMask::MouseMoved,
@@ -119,7 +121,7 @@ unsafe fn register_ns_event(
             let e = &*event.as_ptr();
             match (e.r#type(), status.get()) {
                 (NSEventType::LeftMouseDown, CurrentStatus::None) => {
-                    transition_to_move(&parent_window, &status, e);
+                    transition_to_move(movable_by_window_background, &parent_window, &status, e);
                 }
                 (NSEventType::LeftMouseUp, _) => {
                     status.set(CurrentStatus::None);
@@ -199,12 +201,13 @@ unsafe fn bring_to_front_child_window(
 }
 
 unsafe fn transition_to_move(
+    movable_by_window_background: bool,
     parent_window: &NSWindow,
     status: &Cell<CurrentStatus>,
     e: &NSEvent,
 ) {
     if let Some(child_window) = find_child_window(parent_window, e.windowNumber()) {
-        if child_window.contentRectForFrameRect(child_window.frame()).size.height <= e.locationInWindow().y {
+        if movable_by_window_background || child_window.contentRectForFrameRect(child_window.frame()).size.height <= e.locationInWindow().y {
             bring_to_front_child_window(parent_window, &child_window);
             status.set(CurrentStatus::Moving(e.windowNumber()));
         }
