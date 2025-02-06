@@ -136,7 +136,7 @@ fn on_will_resize(
     window: &NSWindow,
     mut size: NSSize,
 ) -> NSSize {
-    let Some(dir) = i_vars.dir.get().take() else {
+    let Some(dir) = i_vars.dir.get() else {
         return size;
     };
 
