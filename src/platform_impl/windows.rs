@@ -17,7 +17,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 use winit::raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 
 /// On Windows, by default, the window's own area is managed within the parent's window area, but the behavior was such that the window position would slightly protrude.
-/// Therefore, WindowProc is used to force the drag area to be managed.
+/// Therefore, `WindowProc` is used to force the drag area to be managed.
 pub struct ChildWindowPlugin;
 
 impl Plugin for ChildWindowPlugin {
