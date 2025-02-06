@@ -1,6 +1,8 @@
 # bevy_child_window
 
-This library provides a way to create a child window in Bevy.
+This library provides a way to create an embed child window in Bevy.
+
+![webview](examples/webview.gif)
 
 ## Supported platforms
 
