@@ -1,5 +1,8 @@
 # bevy_child_window
 
+[![Crates.io](https://img.shields.io/crates/v/bevy_webview_wry.svg)](https://crates.io/crates/bevy_child_window)
+[![MIT/Apache 2.0](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/not-elm/bevy_child_window#license)
+
 This library provides a way to create an embed child window in Bevy.
 
 ![webview](examples/webview.gif)
