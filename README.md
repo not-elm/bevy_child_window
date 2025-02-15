@@ -5,16 +5,23 @@
 
 This library provides a way to create an embed child window in Bevy.
 
-![webview](examples/webview.gif)
+This is a library for [
+`bevy_webview_wry`](https://github.com/not-elm/bevy_webview_projects/blob/main/crates/bevy_webview_wry/README.md), but
+can be used in generic bevy applications.
+
+![webview](docs/webview.gif)
 
 ## Supported platforms
 
-| Platform | usable |
-|----------|--------|
-| Windows  | ✅      |
-| MacOS    | ✅      |
-| Linux    | ❌      |
-| Web      | ❌      |
+| Platform       | usable |
+|----------------|--------|
+| Windows        | ✅      |
+| MacOS          | ✅      |
+| Linux(X11)     | ❌      |
+| Linux(Wayland) | ❌      |
+| Web            | ❌      |
+| Android        | ❌      |
+| iOS            | ❌      |
 
 ## Usage
 
