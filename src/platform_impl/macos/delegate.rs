@@ -127,7 +127,6 @@ fn is_bottom(
     start_rect: CGRect,
     current: CGRect,
 ) -> bool {
-    println!("{start_rect:?} {current:?})");
     1e-6 < (start_rect.origin.y - current.origin.y).abs()
 }
 #[inline]
