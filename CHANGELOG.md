@@ -1,3 +1,10 @@
+## v0.1.2
+
+[Release note](https://github.com/not-elm/bevy_child_window/releases/tag/v0.1.2)
+
+- Deleted unnecessary log
+- Changed internal dependency winit version from `=v0.30.7` to `^v0.30`
+
 ## v0.1.1
 
 [Release note](https://github.com/not-elm/bevy_child_window/releases/tag/v0.1.1)
