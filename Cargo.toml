@@ -16,7 +16,7 @@ bevy = { version = "0.15", default-features = false, features = [
     "bevy_winit",
     "serialize",
 ] }
-winit = { version = "=0.30.7" }
+winit = { version = "0.30" }
 serde = { version = "1.0.217", features = ["derive"] }
 
 [dev-dependencies]
