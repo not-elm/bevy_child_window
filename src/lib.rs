@@ -86,7 +86,7 @@ impl Plugin for ChildWindowPlugin {
 ///    parent_window: Query<Entity, With<ParentWindow>>,
 /// ){
 ///     commands.spawn((
-///         ParentWindow(parent_window.single().expect("Parent not found"))),
+///         ParentWindow(parent_window.single().expect("Parent not found")),
 ///         Window::default(),
 ///    ));
 /// }
