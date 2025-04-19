@@ -2,7 +2,7 @@ use crate::{ParentWindow, UnInitializeWindow};
 use bevy::app::{App, Plugin, Update};
 use bevy::log::error;
 use bevy::math::IVec2;
-use bevy::prelude::{any_with_component, Commands, Entity, IntoSystemConfigs, NonSend, Query, Window, With};
+use bevy::prelude::*;
 use bevy::winit::WinitWindows;
 use std::collections::BTreeMap;
 use std::ffi::c_void;
