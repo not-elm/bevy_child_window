@@ -3,7 +3,7 @@ mod delegate;
 use crate::platform_impl::macos::delegate::ChildWindowDelegate;
 use crate::{ParentWindow, UnInitializeWindow};
 use bevy::app::{App, Plugin, Update};
-use bevy::platform_support::collections::HashSet;
+use bevy::platform::collections::HashSet;
 use bevy::prelude::{any_with_component, Commands, Entity, IntoScheduleConfigs, NonSend, Query, ResMut, Resource, With};
 use bevy::window::Window;
 use bevy::winit::WinitWindows;
