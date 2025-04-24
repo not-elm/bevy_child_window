@@ -13,7 +13,7 @@
 //!    parent_window: Query<Entity, With<ParentWindow>>,
 //! ){
 //!     commands.spawn((
-//!         ParentWindow(parent_window.single()),
+//!         ParentWindow(parent_window.single().expect("Parent not found")),
 //!         Window::default(),
 //!    ));
 //! }
@@ -23,6 +23,7 @@
 
 mod platform_impl;
 use bevy::app::{App, Plugin};
+use bevy::ecs::component::HookContext;
 use bevy::ecs::world::DeferredWorld;
 use bevy::prelude::{Component, Entity, Reflect, ReflectComponent, ReflectDefault, ReflectDeserialize, ReflectSerialize};
 use serde::{Deserialize, Serialize};
@@ -48,7 +49,7 @@ pub mod prelude {
 ///    parent_window: Query<Entity, With<ParentWindow>>,
 /// ){
 ///     commands.spawn((
-///         ParentWindow(parent_window.single()),
+///         ParentWindow(parent_window.single().expect("Parent not found")),
 ///         Window::default(),
 ///    ));
 /// }
@@ -65,8 +66,8 @@ impl Plugin for ChildWindowPlugin {
         app
             .world_mut()
             .register_component_hooks::<ParentWindow>()
-            .on_add(|mut world: DeferredWorld, entity: Entity, _| {
-                world.commands().entity(entity).insert(UnInitializeWindow);
+            .on_add(|mut world: DeferredWorld, context: HookContext| {
+                world.commands().entity(context.entity).insert(UnInitializeWindow);
             });
     }
 }
@@ -85,7 +86,7 @@ impl Plugin for ChildWindowPlugin {
 ///    parent_window: Query<Entity, With<ParentWindow>>,
 /// ){
 ///     commands.spawn((
-///         ParentWindow(parent_window.single()),
+///         ParentWindow(parent_window.single().expect("Parent not found")),
 ///         Window::default(),
 ///    ));
 /// }
@@ -97,4 +98,5 @@ pub struct ParentWindow(pub Entity);
 #[derive(Component, Reflect, Serialize, Deserialize, Default)]
 #[reflect(Component, Serialize, Deserialize, Default)]
 struct UnInitializeWindow;
+
 

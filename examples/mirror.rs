@@ -24,7 +24,7 @@ fn spawn_child_window(
     parent: Query<Entity, With<PrimaryWindow>>,
 ) {
     let entity = commands.spawn((
-        ParentWindow(parent.single()),
+        ParentWindow(parent.single().expect("Parent not found")),
         Window {
             title: "Child Window".to_string(),
             resolution: WindowResolution::new(500.0, 500.0),

@@ -11,16 +11,17 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 
 [dependencies]
-bevy = { version = "0.15", default-features = false, features = [
+bevy = { version = "0.16.0-rc.5", default-features = false, features = [
     "bevy_window",
     "bevy_winit",
     "serialize",
+    "bevy_log",
 ] }
 winit = { version = "0.30" }
-serde = { version = "1.0.217", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
-bevy = "0.15"
+bevy = "0.16.0-rc.5"
 
 [target.'cfg(target_os="windows")'.dependencies]
 windows = { version = "0.59.0", features = [

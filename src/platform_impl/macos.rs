@@ -3,8 +3,8 @@ mod delegate;
 use crate::platform_impl::macos::delegate::ChildWindowDelegate;
 use crate::{ParentWindow, UnInitializeWindow};
 use bevy::app::{App, Plugin, Update};
-use bevy::prelude::{Commands, Entity, NonSend, Query, ResMut, Resource, With};
-use bevy::utils::HashSet;
+use bevy::platform::collections::HashSet;
+use bevy::prelude::{any_with_component, Commands, Entity, IntoScheduleConfigs, NonSend, Query, ResMut, Resource, With};
 use bevy::window::Window;
 use bevy::winit::WinitWindows;
 use block2::RcBlock;
@@ -27,9 +27,7 @@ impl Plugin for ChildWindowPlugin {
     fn build(&self, app: &mut App) {
         app
             .init_resource::<AlreadyRegisteredWindows>()
-            .add_systems(Update, (
-                convert_to_child_window,
-            ));
+            .add_systems(Update, convert_to_child_window.run_if(any_with_component::<UnInitializeWindow>));
     }
 }
 

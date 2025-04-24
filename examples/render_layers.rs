@@ -26,7 +26,7 @@ fn spawn_child_window(
 ) {
     let child_window_entity = commands.spawn((
         RenderLayers::layer(1),
-        ParentWindow(parent.single()),
+        ParentWindow(parent.single().expect("Parent not found")),
         Window {
             title: "Child Window".to_string(),
             resizable: true,
