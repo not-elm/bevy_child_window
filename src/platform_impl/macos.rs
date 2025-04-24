@@ -9,11 +9,11 @@ use bevy::window::Window;
 use bevy::winit::WinitWindows;
 use block2::RcBlock;
 use objc2::ffi::NSInteger;
-use objc2::rc::{Id, Retained};
+use objc2::rc::Retained;
 use objc2::runtime::ProtocolObject;
-use objc2::ClassType;
+use objc2::Message;
 use objc2_app_kit::{NSEvent, NSEventMask, NSEventType, NSView, NSWindow, NSWindowOrderingMode, NSWindowStyleMask, NSWindowTitleVisibility};
-use objc2_foundation::{CGPoint, CGRect, MainThreadMarker};
+use objc2_foundation::{MainThreadMarker, NSPoint, NSRect};
 use std::cell::Cell;
 use std::mem::forget;
 use std::ptr::{null_mut, NonNull};
@@ -76,7 +76,7 @@ fn settings_windows(
     parent_window: &NSWindow,
 ) {
     unsafe {
-        parent_window.addChildWindow_ordered(child_window, NSWindowOrderingMode::NSWindowAbove);
+        parent_window.addChildWindow_ordered(child_window, NSWindowOrderingMode::Above);
     }
 
     let delegate = ChildWindowDelegate::new(MainThreadMarker::new().unwrap());
@@ -86,9 +86,9 @@ fn settings_windows(
     child_window.setMovable(false);
     child_window.setStyleMask(style_mask(window));
     child_window.setTitleVisibility(if window.titlebar_show_title {
-        NSWindowTitleVisibility::NSWindowTitleVisible
+        NSWindowTitleVisibility::Visible
     } else {
-        NSWindowTitleVisibility::NSWindowTitleHidden
+        NSWindowTitleVisibility::Hidden
     });
 }
 
@@ -152,8 +152,8 @@ unsafe fn move_child_window(
     let y = p.origin.y.max(y);
     let y = y.min(p.origin.y + p.size.height - c.size.height);
 
-    child_window.setFrame_display(CGRect::new(
-        CGPoint::new(x, y),
+    child_window.setFrame_display(NSRect::new(
+        NSPoint::new(x, y),
         c.size,
     ), false);
 }
@@ -174,7 +174,7 @@ fn obtain_ns_window(
     let ns_window = window.raw_window_handle().ok()?;
     if let RawWindowHandle::AppKit(handle) = ns_window {
         let ns_ptr = handle.ns_view.as_ptr();
-        let ns_view: Id<NSView> = unsafe { Id::retain(ns_ptr.cast())? };
+        let ns_view: Retained<NSView> = unsafe { Retained::retain(ns_ptr.cast())? };
         ns_view.window()
     } else {
         None
@@ -194,7 +194,7 @@ unsafe fn bring_to_front_child_window(
             }
         }
     }
-    parent_window.addChildWindow_ordered(child_window, NSWindowOrderingMode::NSWindowAbove);
+    parent_window.addChildWindow_ordered(child_window, NSWindowOrderingMode::Above);
     child_window.becomeKeyWindow();
 }
 

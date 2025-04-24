@@ -1,13 +1,13 @@
-use objc2::rc::{Id, Retained};
+use objc2::rc::Retained;
 use objc2::runtime::{NSObject, NSObjectProtocol};
-use objc2::{declare_class, msg_send_id, mutability, ClassType, DeclaredClass};
+use objc2::{define_class, msg_send, DefinedClass, MainThreadOnly};
 use objc2_app_kit::{NSWindow, NSWindowDelegate};
-use objc2_foundation::{CGPoint, CGRect, CGSize, MainThreadMarker, NSNotification, NSSize};
+use objc2_foundation::{MainThreadMarker, NSNotification, NSPoint, NSRect, NSSize};
 use std::cell::Cell;
 
 
 pub struct ChildWindowIVars {
-    window_origin: Cell<CGRect>,
+    window_origin: Cell<NSRect>,
     dir: Cell<Option<ResizeDirection>>,
 }
 
@@ -19,35 +19,29 @@ pub struct ResizeDirection {
     bottom: bool,
 }
 
-declare_class! {
+define_class! {
+    #[unsafe(super = NSObject)]
+    #[thread_kind = MainThreadOnly]
+    #[ivars = ChildWindowIVars]
     pub struct ChildWindowDelegate;
 
-    unsafe impl ClassType for ChildWindowDelegate {
-        type Super = NSObject;
-        type Mutability = mutability::MainThreadOnly;
-        const NAME: &'static str = "ChildWindowDelegate";
-    }
-
-    impl DeclaredClass  for ChildWindowDelegate {
-        type Ivars = ChildWindowIVars;
-    }
-
     unsafe impl NSObjectProtocol for ChildWindowDelegate {}
+    
     unsafe impl NSWindowDelegate for ChildWindowDelegate {
         #[inline]
-        #[method(windowWillStartLiveResize:)]
+        #[unsafe(method(windowWillStartLiveResize:))]
         unsafe fn window_will_start_live_resize(&self, notification: &NSNotification){
             on_resize_start(self.ivars(), notification);
         }
 
         #[inline]
-        #[method(windowDidResize:)]
+        #[unsafe(method(windowDidResize:))]
         unsafe fn window_did_resize(&self, notification: &NSNotification){
             on_did_resize(self.ivars(), notification);
         }
 
         #[inline]
-        #[method(windowWillResize:toSize:)]
+        #[unsafe(method(windowWillResize:toSize:))]
         unsafe fn window_will_resize(&self, window: &NSWindow, proposed_size: NSSize) -> NSSize {
             on_will_resize(self.ivars(), window, proposed_size)
         }
@@ -58,10 +52,10 @@ impl ChildWindowDelegate {
     pub fn new(mtm: MainThreadMarker) -> Retained<Self> {
         let this = mtm.alloc();
         let this = this.set_ivars(ChildWindowIVars {
-            window_origin: Cell::new(CGRect::new(CGPoint::new(0., 0.), CGSize::new(0., 0.))),
+            window_origin: Cell::new(NSRect::new(NSPoint::new(0., 0.), NSSize::new(0., 0.))),
             dir: Cell::new(None),
         });
-        unsafe { msg_send_id![super(this), init] }
+        unsafe { msg_send![super(this), init] }
     }
 }
 
@@ -73,7 +67,7 @@ unsafe fn on_resize_start(
     let Some(obj) = notification.object() else {
         return;
     };
-    let ns_window: Retained<NSWindow> = Id::cast(obj);
+    let ns_window: Retained<NSWindow> = Retained::cast_unchecked(obj);
     i_vars.window_origin.set(ns_window.frame());
     i_vars.dir.set(None);
 }
@@ -90,7 +84,7 @@ unsafe fn on_did_resize(
         return;
     };
 
-    let ns_window: Retained<NSWindow> = Id::cast(obj);
+    let ns_window: Retained<NSWindow> = Retained::cast_unchecked(obj);
     let start = i_vars.window_origin.get();
     let current = ns_window.frame();
     i_vars.dir.set(Some(ResizeDirection {
@@ -103,29 +97,29 @@ unsafe fn on_did_resize(
 }
 
 fn is_left(
-    start_rect: CGRect,
-    current: CGRect,
+    start_rect: NSRect,
+    current: NSRect,
 ) -> bool {
     1e-6 < (start_rect.origin.x - current.origin.x).abs()
 }
 
 fn is_right(
-    start_rect: CGRect,
-    current: CGRect,
+    start_rect: NSRect,
+    current: NSRect,
 ) -> bool {
     1e-6 < (start_rect.size.width - current.size.width).abs()
 }
 
 fn is_top(
-    start_rect: CGRect,
-    current: CGRect,
+    start_rect: NSRect,
+    current: NSRect,
 ) -> bool {
     1e-6 < (start_rect.size.height - current.size.height).abs()
 }
 
 fn is_bottom(
-    start_rect: CGRect,
-    current: CGRect,
+    start_rect: NSRect,
+    current: NSRect,
 ) -> bool {
     1e-6 < (start_rect.origin.y - current.origin.y).abs()
 }
