@@ -1,3 +1,11 @@
+## v0.2.0
+
+[Release note](https://github.com/not-elm/bevy_child_window/releases/tag/v0.2.0)
+
+### Features
+
+- Support bevy's version v0.16
+
 ## v0.1.2
 
 [Release note](https://github.com/not-elm/bevy_child_window/releases/tag/v0.1.2)
