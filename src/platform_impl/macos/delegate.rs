@@ -23,6 +23,7 @@ define_class! {
     #[unsafe(super = NSObject)]
     #[thread_kind = MainThreadOnly]
     #[ivars = ChildWindowIVars]
+    #[name = "ChildWindowDelegate"]
     pub struct ChildWindowDelegate;
 
     unsafe impl NSObjectProtocol for ChildWindowDelegate {}
@@ -123,6 +124,7 @@ fn is_bottom(
 ) -> bool {
     1e-6 < (start_rect.origin.y - current.origin.y).abs()
 }
+
 #[inline]
 fn on_will_resize(
     i_vars: &ChildWindowIVars,
