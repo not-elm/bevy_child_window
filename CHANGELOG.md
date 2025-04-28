@@ -1,3 +1,11 @@
+## v0.2.1
+
+[Release note](https://github.com/not-elm/bevy_child_window/releases/tag/v0.2.1)
+
+## Others
+
+- Added `#[name = "ChildWindowDelegate"]` attribute to `ChildWindowDelegate`
+
 ## v0.2.0
 
 [Release note](https://github.com/not-elm/bevy_child_window/releases/tag/v0.2.0)

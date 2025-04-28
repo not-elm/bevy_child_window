@@ -1,6 +1,6 @@
 [package]
 name = "bevy_child_window"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 authors = ["notelm <elmprograminfo@gmail.com>"]
 description = "Allows you to create an embed child window in Bevy"
